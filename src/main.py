@@ -26,7 +26,7 @@ app.add_middleware(
 Base.metadata.create_all(bind=engine)
 
 
-class UserResponse(BaseModel):
+class UserResponseCreate(BaseModel):
     name: str
     email: str
     password: str
@@ -52,7 +52,7 @@ def get_db():
 
 
 @app.post("/register")
-def register(user: UserResponse, db: Session = Depends(get_db)):
+def register(user: UserResponseCreate, db: Session = Depends(get_db)):
     if bool(db.query(Users).filter_by(email=user.email).first()):
         raise HTTPException(status_code=422, detail="Este email já foi cadastrado")
 
