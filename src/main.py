@@ -54,8 +54,9 @@ def register(user: UserResponse, db: Session = Depends(get_db)):
     db.add(user_model)
     db.commit()
 
-    json_compatible_item_data = jsonable_encoder(user)
-    return JSONResponse(content=json_compatible_item_data)
+    response_json = {"name": user.name, "email": user.email}
+    jsonable_encoder(response_json)
+    return JSONResponse(content=jsonable_encoder(response_json))
 
 
 @app.post("/login")
