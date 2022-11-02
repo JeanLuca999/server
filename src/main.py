@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Form, Response
+from fastapi import FastAPI, Depends, Form, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from .database import engine, SessionLocal
@@ -45,6 +45,8 @@ def get_db():
 
 @app.post("/register")
 def register(user: UserResponse, db: Session = Depends(get_db)):
+    if bool(db.query(Users).filter_by(email=user.email)):
+        raise HTTPException(status_code=422, detail="Este email já foi cadastrado")
 
     user_model = Users()
     user_model.name = user.name
