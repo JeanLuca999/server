@@ -27,7 +27,11 @@ Base.metadata.create_all(bind=engine)
 
 class PostSchema(BaseModel):
     body: str = Field(min_length=1)
-    user_id: int = Field(gt=0, lt=10000000000000000)
+    owner_id: int = Field(gt=0, lt=10000000000000000)
+
+    class Config:
+      orm_mode = True
+
 
 class UserResponse(BaseModel):
     name: str
@@ -61,17 +65,22 @@ def get_posts(db: Session = Depends(get_db)):
 
 @app.get("/posts/user/{user_id}")
 def read_users_post(user_id: int, db: Session = Depends(get_db)):
-    posts = db.query(Posts).filter_by(user_id)
+    posts = db.query(Posts).filter_by(owner_id=user_id).all()
     return posts
 
 @app.post("/posts")
 def create_posts(post: PostSchema, db: Session = Depends(get_db)):
-    post_model = Posts()
-    post_model.body = post.body
-    db.add(post_model)
-    db.commit()
-    db.refresh(post_model)
-    return post_model
+    owner_exists = db.query(Users).filter_by(id=post.owner_id).first()
+    if owner_exists:
+        post_model = Posts()
+        post_model.body = post.body
+        post_model.owner_id = post.owner_id
+        db.add(post_model)
+        db.commit()
+        db.refresh(post_model)
+        return post_model
+    else: 
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
 
 @app.delete("/posts/{post_id}")
 def delete_posts(post_id: int, db: Session = Depends(get_db)):
@@ -80,9 +89,9 @@ def delete_posts(post_id: int, db: Session = Depends(get_db)):
     if post_model is None:
         raise(HTTPException(status_code=404, detail=f"PostSchema de ID {post_id} não encontrado!"))
 
-    db.query(PostSchema).filter(PostSchema.id == post_id).delete()
+    db.query(Posts).filter(Posts.id == post_id).delete()
     db.commit()
-    return {"message": f"PostSchema {post_id} deletado com sucesso!"}
+    return {"message": f"Post {post_id} deletado com sucesso!"}
 
 @app.put("/posts/{post_id}")
 def update_posts(post_id: int, post: PostSchema, db: Session = Depends(get_db)):
