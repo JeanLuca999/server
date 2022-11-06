@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from .database import engine, SessionLocal
-from .models import Base, Users
+from .models import Base, Users, Posts
 from sqlalchemy.orm import Session
 import bcrypt
 from fastapi.responses import JSONResponse
@@ -25,6 +25,8 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
+class PostSchema(BaseModel):
+    body: str = Field(min_length=1)
 
 class UserResponse(BaseModel):
     name: str
@@ -50,7 +52,53 @@ def get_db():
     finally:
         db.close()
 
+# POSTS ROUTES
+@app.get("/posts")
+def read_posts(db: Session = Depends(get_db)):
+    posts = db.query(Posts).all()
+    return posts
 
+@app.post("/posts")
+def create_posts(post: PostSchema, db: Session = Depends(get_db)):
+    post_model = Posts()
+    post_model.body = post.body
+    db.add(post_model)
+    db.commit()
+    db.refresh(post_model)
+    return post_model
+
+@app.delete("/posts/{post_id}")
+def delete_posts(post_id: int, db: Session = Depends(get_db)):
+    post_model = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if post_model is None:
+        raise(HTTPException(status_code=404, detail=f"PostSchema de ID {post_id} não encontrado!"))
+
+    db.query(PostSchema).filter(PostSchema.id == post_id).delete()
+    db.commit()
+    return {"message": f"PostSchema {post_id} deletado com sucesso!"}
+
+@app.put("/posts/{post_id}")
+def update_posts(post_id: int, post: PostSchema, db: Session = Depends(get_db)):
+    post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    post_model.body = post.body
+    db.commit()
+    db.refresh(post_model)
+
+    if post_model is None:
+        raise(HTTPException(status_code=404, detail=f"PostSchema de ID {post_id} não encontrado!"))
+
+    return post
+
+
+# USER ROUTES
+@app.get("/users")
+def read_users(db: Session = Depends(get_db)):
+    users = db.query(Users).all()
+    return users
+
+
+# AUTH ROUTES
 @app.post("/register")
 def register(user: UserResponse, db: Session = Depends(get_db)):
     if bool(db.query(Users).filter_by(email=user.email).first()):
