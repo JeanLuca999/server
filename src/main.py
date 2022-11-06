@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from .database import engine, SessionLocal
 from .models import Base, Users, Posts
 from sqlalchemy.orm import Session
@@ -38,7 +38,7 @@ class UserResponse(BaseModel):
 
 
 class UserResponseLogin(BaseModel):
-    email: str
+    email: EmailStr 
     password: str
 
     class Config:
