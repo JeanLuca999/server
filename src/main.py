@@ -27,6 +27,7 @@ Base.metadata.create_all(bind=engine)
 
 class PostSchema(BaseModel):
     body: str = Field(min_length=1)
+    user_id: int = Field(gt=0, lt=10000000000000000)
 
 class UserResponse(BaseModel):
     name: str
@@ -54,8 +55,13 @@ def get_db():
 
 # POSTS ROUTES
 @app.get("/posts")
-def read_posts(db: Session = Depends(get_db)):
+def get_posts(db: Session = Depends(get_db)):
     posts = db.query(Posts).all()
+    return posts
+
+@app.get("/posts/user/{user_id}")
+def read_users_post(user_id: int, db: Session = Depends(get_db)):
+    posts = db.query(Posts).filter_by(user_id)
     return posts
 
 @app.post("/posts")
