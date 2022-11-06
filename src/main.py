@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, EmailStr
 from .database import engine, SessionLocal
-from .models import Base, Users
+from .models import Base, Users, Posts
 from sqlalchemy.orm import Session
 import bcrypt
 from fastapi.responses import JSONResponse
@@ -25,6 +25,13 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
+class PostSchema(BaseModel):
+    body: str = Field(min_length=1)
+    owner_id: int = Field(gt=0, lt=10000000000000000)
+
+    class Config:
+      orm_mode = True
+
 
 class UserResponseCreate(BaseModel):
     name: str
@@ -36,7 +43,7 @@ class UserResponseCreate(BaseModel):
 
 
 class UserResponseLogin(BaseModel):
-    email: str
+    email: EmailStr 
     password: str
 
     class Config:
@@ -50,7 +57,63 @@ def get_db():
     finally:
         db.close()
 
+# POSTS ROUTES
+@app.get("/posts")
+def get_posts(db: Session = Depends(get_db)):
+    posts = db.query(Posts).all()
+    return posts
 
+@app.get("/posts/user/{user_id}")
+def read_users_post(user_id: int, db: Session = Depends(get_db)):
+    posts = db.query(Posts).filter_by(owner_id=user_id).all()
+    return posts
+
+@app.post("/posts")
+def create_posts(post: PostSchema, db: Session = Depends(get_db)):
+    owner_exists = db.query(Users).filter_by(id=post.owner_id).first()
+    if owner_exists:
+        post_model = Posts()
+        post_model.body = post.body
+        post_model.owner_id = post.owner_id
+        db.add(post_model)
+        db.commit()
+        db.refresh(post_model)
+        return post_model
+    else: 
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+@app.delete("/posts/{post_id}")
+def delete_posts(post_id: int, db: Session = Depends(get_db)):
+    post_model = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if post_model is None:
+        raise(HTTPException(status_code=404, detail=f"PostSchema de ID {post_id} não encontrado!"))
+
+    db.query(Posts).filter(Posts.id == post_id).delete()
+    db.commit()
+    return {"message": f"Post {post_id} deletado com sucesso!"}
+
+@app.put("/posts/{post_id}")
+def update_posts(post_id: int, post: PostSchema, db: Session = Depends(get_db)):
+    post_model = db.query(Posts).filter(Posts.id == post_id).first()
+    post_model.body = post.body
+    db.commit()
+    db.refresh(post_model)
+
+    if post_model is None:
+        raise(HTTPException(status_code=404, detail=f"PostSchema de ID {post_id} não encontrado!"))
+
+    return post
+
+
+# USER ROUTES
+@app.get("/users")
+def read_users(db: Session = Depends(get_db)):
+    users = db.query(Users).all()
+    return users
+
+
+# AUTH ROUTES
 @app.post("/register")
 def register(user: UserResponseCreate, db: Session = Depends(get_db)):
     if bool(db.query(Users).filter_by(email=user.email).first()):
@@ -64,7 +127,7 @@ def register(user: UserResponseCreate, db: Session = Depends(get_db)):
     db.add(user_model)
     db.commit()
 
-    response_json = {"name": user.name, "email": user.email}
+    response_json = {"id": user_model.id, "name": user.name, "email": user.email}
     return JSONResponse(content=jsonable_encoder(response_json))
 
 
@@ -77,6 +140,7 @@ def login(user: UserResponseLogin, db: Session = Depends(get_db)):
         user.password.encode("utf-8"), valid_user.password
     ):
         response_json = {
+            "id": valid_user.id,
             "name": valid_user.name,
             "email": valid_user.email,
         }
