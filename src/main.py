@@ -127,7 +127,7 @@ def register(user: UserResponse, db: Session = Depends(get_db)):
     db.add(user_model)
     db.commit()
 
-    response_json = {"name": user.name, "email": user.email}
+    response_json = {"id": user_model.id, "name": user.name, "email": user.email}
     return JSONResponse(content=jsonable_encoder(response_json))
 
 
@@ -140,6 +140,7 @@ def login(user: UserResponseLogin, db: Session = Depends(get_db)):
         user.password.encode("utf-8"), valid_user.password
     ):
         response_json = {
+            "id": valid_user.id,
             "name": valid_user.name,
             "email": valid_user.email,
         }
