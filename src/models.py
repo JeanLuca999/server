@@ -11,16 +11,18 @@ class Users(Base):
     email = Column(String)
     password = Column(String)
 
-    posts = relationship("Posts", backref="owner")
-    events = relationship("Events", backref="owner")
+    posts = relationship("Posts", back_populates="users")
+    events = relationship("Events", back_populates="users")
 
 
 class Posts(Base):
     __tablename__ = "posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey('users.id'))
     body = Column(String)
+
+    users = relationship("Users", back_populates="posts")
 
 
 class Events(Base):
@@ -31,4 +33,6 @@ class Events(Base):
     description = Column(String)
     location = Column(String)
     date = Column(String)
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey('users.id'))
+
+    users = relationship("Users", back_populates="events")

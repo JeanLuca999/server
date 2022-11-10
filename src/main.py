@@ -2,11 +2,12 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, EmailStr
 from .database import engine, SessionLocal
-from .models import Base, Users, Posts
+from .models import Base, Users, Posts, Events
 from sqlalchemy.orm import Session
 import bcrypt
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy import event
 
 app = FastAPI()
 
@@ -23,7 +24,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+def _fk_pragma_on_connect(dbapi_con, con_record):
+    dbapi_con.execute('pragma foreign_keys=ON')
+
+
 Base.metadata.create_all(bind=engine)
+
+event.listen(engine, 'connect', _fk_pragma_on_connect)
+
+
+class EventSchema(BaseModel):
+    id: int
+    title: str
+    description: str
+    location: str
+    date: str
+    owner_id: int = Field(gt=0, lt=10000000000000000)
+
+    class Config:
+        orm_mode = True
 
 
 class PostSchema(BaseModel):
@@ -31,7 +51,7 @@ class PostSchema(BaseModel):
     owner_id: int = Field(gt=0, lt=10000000000000000)
 
     class Config:
-      orm_mode = True
+        orm_mode = True
 
 
 class UserResponse(BaseModel):
@@ -90,19 +110,22 @@ def create_posts(post: PostSchema, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(post_model)
         return post_model
-    else: 
-       raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+    else:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
 
 @app.delete("/posts/{post_id}")
 def delete_posts(post_id: int, db: Session = Depends(get_db)):
     post_model = db.query(Posts).filter(Posts.id == post_id).first()
 
     if post_model is None:
-        raise(HTTPException(status_code=404, detail=f"PostSchema de ID {post_id} não encontrado!"))
+        raise (HTTPException(status_code=404,
+               detail=f"PostSchema de ID {post_id} não encontrado!"))
 
     db.query(Posts).filter(Posts.id == post_id).delete()
     db.commit()
     return {"message": f"Post {post_id} deletado com sucesso!"}
+
 
 @app.put("/posts/{post_id}")
 def update_posts(post_id: int, post: PostSchema, db: Session = Depends(get_db)):
@@ -112,7 +135,8 @@ def update_posts(post_id: int, post: PostSchema, db: Session = Depends(get_db)):
     db.refresh(post_model)
 
     if post_model is None:
-        raise(HTTPException(status_code=404, detail=f"PostSchema de ID {post_id} não encontrado!"))
+        raise (HTTPException(status_code=404,
+               detail=f"PostSchema de ID {post_id} não encontrado!"))
 
     return post
 
@@ -128,17 +152,20 @@ def read_users(db: Session = Depends(get_db)):
 @app.post("/register")
 def register(user: UserResponse, db: Session = Depends(get_db)):
     if bool(db.query(Users).filter_by(email=user.email).first()):
-        raise HTTPException(status_code=422, detail="Este email já foi cadastrado")
+        raise HTTPException(
+            status_code=422, detail="Este email já foi cadastrado")
 
     user_model = Users()
     user_model.name = user.name
     user_model.email = user.email
-    user_model.password = bcrypt.hashpw(user.password.encode("utf-8"), bcrypt.gensalt())
+    user_model.password = bcrypt.hashpw(
+        user.password.encode("utf-8"), bcrypt.gensalt())
 
     db.add(user_model)
     db.commit()
 
-    response_json = {"id": user_model.id, "name": user.name, "email": user.email}
+    response_json = {"id": user_model.id,
+                     "name": user.name, "email": user.email}
     return JSONResponse(content=jsonable_encoder(response_json))
 
 
