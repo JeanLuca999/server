@@ -35,7 +35,6 @@ event.listen(engine, 'connect', _fk_pragma_on_connect)
 
 
 class EventSchema(BaseModel):
-    id: int
     title: str
     description: str
     location: str
@@ -77,25 +76,105 @@ def get_db():
         yield db
     finally:
         db.close()
+
 # EVENTS ROUTES
-
-
 @app.get("/events")
 def get_events(db: Session = Depends(get_db)):
     events = db.query(Posts).all()
+
+    for event in events:
+        event_user = db.query(Users).filter(Users.id == event.owner_id).first()
+
+        user_fields = {
+            "name": event_user.name,
+            "email": event_user.email,
+        }
+
+        event.user = user_fields
+
     return events
+
+
+@app.post("/events")
+def create_event(event: EventSchema, db: Session = Depends(get_db)):
+    owner_exists = db.query(Users).filter(Users.id == event.owner_id).first()
+
+    if owner_exists:
+        event_model = Events()
+        event_model.title = event.title
+        event_model.description = event.description
+        event_model.location = event.location
+        event_model.date = event.date
+        event_model.owner_id = event.owner_id
+        db.add(event_model)
+        db.commit()
+        db.refresh(event_model)
+        return event_model
+    else:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+
+@app.delete("/events/{event_id}")
+def delete_event(event_id: int, db: Session = Depends(get_db)):
+    event = db.query(Events).filter(Events.id == event_id).first()
+
+    if event:
+        db.delete(event)
+        db.commit()
+        return {"message": "Evento deletado com sucesso"}
+    else:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+
+
+@app.put("/events/{event_id}")
+def update_event(event_id: int, event: EventSchema, db: Session = Depends(get_db)):
+    event_exists = db.query(Events).filter(Events.id == event_id).first()
+
+    if event_exists:
+        event_exists.title = event.title
+        event_exists.description = event.description
+        event_exists.location = event.location
+        event_exists.date = event.date
+        event_exists.owner_id = event.owner_id
+        db.commit()
+        db.refresh(event_exists)
+        return event_exists
+    else:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
 
 
 # POSTS ROUTES
 @app.get("/posts")
 def get_posts(db: Session = Depends(get_db)):
     posts = db.query(Posts).all()
+
+    for post in posts:
+        post_user = db.query(Users).filter(Users.id == post.owner_id).first()
+
+        user_fields = {
+            "name": post_user.name,
+            "email": post_user.email,
+        }
+
+        post.user = user_fields
+
     return posts
 
 
 @app.get("/posts/user/{user_id}")
 def read_users_post(user_id: int, db: Session = Depends(get_db)):
     posts = db.query(Posts).filter_by(owner_id=user_id).all()
+
+    for post in posts:
+        post_user = db.query(Users).filter(Users.id == post.owner_id).first()
+
+        user_fields = {
+            "name": post_user.name,
+            "email": post_user.email,
+        }
+
+        post.user = user_fields
+
     return posts
 
 
