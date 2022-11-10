@@ -25,6 +25,7 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
+
 class PostSchema(BaseModel):
     body: str = Field(min_length=1)
     owner_id: int = Field(gt=0, lt=10000000000000000)
@@ -43,7 +44,7 @@ class UserResponse(BaseModel):
 
 
 class UserResponseLogin(BaseModel):
-    email: EmailStr 
+    email: EmailStr
     password: str
 
     class Config:
@@ -56,6 +57,14 @@ def get_db():
         yield db
     finally:
         db.close()
+# EVENTS ROUTES
+
+
+@app.get("/events")
+def get_events(db: Session = Depends(get_db)):
+    events = db.query(Posts).all()
+    return events
+
 
 # POSTS ROUTES
 @app.get("/posts")
@@ -63,10 +72,12 @@ def get_posts(db: Session = Depends(get_db)):
     posts = db.query(Posts).all()
     return posts
 
+
 @app.get("/posts/user/{user_id}")
 def read_users_post(user_id: int, db: Session = Depends(get_db)):
     posts = db.query(Posts).filter_by(owner_id=user_id).all()
     return posts
+
 
 @app.post("/posts")
 def create_posts(post: PostSchema, db: Session = Depends(get_db)):
@@ -80,7 +91,7 @@ def create_posts(post: PostSchema, db: Session = Depends(get_db)):
         db.refresh(post_model)
         return post_model
     else: 
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+       raise HTTPException(status_code=404, detail="Usuário não encontrado.")
 
 @app.delete("/posts/{post_id}")
 def delete_posts(post_id: int, db: Session = Depends(get_db)):
