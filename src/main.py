@@ -8,6 +8,7 @@ import bcrypt
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import event
+from typing import Optional
 
 app = FastAPI()
 
@@ -32,6 +33,15 @@ def _fk_pragma_on_connect(dbapi_con, con_record):
 Base.metadata.create_all(bind=engine)
 
 event.listen(engine, 'connect', _fk_pragma_on_connect)
+
+class EventUpdateSchema(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    date: Optional[str] = None
+    owner_id: Optional[int] = None
+    class Config:
+        orm_mode = True
 
 
 class EventSchema(BaseModel):
@@ -127,7 +137,7 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/events/{event_id}")
-def update_event(event_id: int, event: EventSchema, db: Session = Depends(get_db)):
+def update_event(event_id: int, event: EventUpdateSchema, db: Session = Depends(get_db)):
     event_model = db.query(Events).filter(Events.id == event_id).first()
 
     if event_model:
@@ -135,7 +145,6 @@ def update_event(event_id: int, event: EventSchema, db: Session = Depends(get_db
         event_model.description = event.description
         event_model.location = event.location
         event_model.date = event.date
-        event_model.owner_id = event.owner_id
         db.add(event_model)
         db.commit()
         db.refresh(event_model)
