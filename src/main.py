@@ -90,7 +90,7 @@ def get_db():
 # EVENTS ROUTES
 @app.get("/events")
 def get_events(db: Session = Depends(get_db)):
-    events = db.query(Posts).all()
+    events = db.query(Events).all()
 
     for event in events:
         event_user = db.query(Users).filter(Users.id == event.owner_id).first()
