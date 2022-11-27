@@ -136,15 +136,15 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Evento não encontrado")
 
 
-@app.put("/events/{event_id}")
+@app.patch("/events/{event_id}")
 def update_event(event_id: int, event: EventUpdateSchema, db: Session = Depends(get_db)):
     event_model = db.query(Events).filter(Events.id == event_id).first()
-
+    
     if event_model:
-        event_model.title = event.title
-        event_model.description = event.description
-        event_model.location = event.location
-        event_model.date = event.date
+        event_model.title = event.title if event.title else event_model.title
+        event_model.description = event.description if event.description else event_model.description
+        event_model.location = event.location if event.location else event_model.location
+        event_model.date = event.date if event.date else event_model.date
         db.add(event_model)
         db.commit()
         db.refresh(event_model)
