@@ -1,7 +1,7 @@
 # Backend - Tópicos Especiais
 
 
-Para executar este projeto em conjunto com seu [frontend](https://github.com/JeanLuca999/client), utilize o comando:
+Para executar este projeto em conjunto com seu [frontend](https://github.com/JeanLuca999/client), instale as dependências contidas em `requirements.txt` e utilize o comando de terminal:
 
 ### uvicorn src.main:app --reload --port 3001
 
